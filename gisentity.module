@@ -1,0 +1,313 @@
+<?php
+
+/**
+ * Implements hook_entity_info().
+ */
+function gisentity_entity_info() {
+  $info = array();
+
+  $info['gisentity'] = array(
+    //Human readable label
+    'label' => t('GIS Codes'),
+    //Table for storing gis entity, defined in hook_schema()
+    'base table' => 'gisentity_codes_table',
+    //This helps Entity API know how to query the custom table.
+    'entity keys' => array(
+      'id' => 'id',
+      'code' => 'code',
+    ),
+    'module' => 'gisentity',
+    'entity class' => 'gisentityEntity',
+    'controller class' => 'gisentityController',
+    'fieldable' => TRUE,
+    'bundles' => array(
+      'gisentity' => array(
+        'label' => t('gisentity'),
+        'admin' => array(
+          'path' => 'admin/gisentity',
+        ),
+      ),
+    ),
+    'view modes' => array(
+      'full' => array(
+        'label' => t('Full GIS Entity'),
+        'custom settings' => FALSE,
+      ),
+    ),
+    'access callback' => 'demo_access_callback',
+    'uri callback' => 'entity_class_uri',
+    'admin ui' => array(
+      'path' => 'admin/gisentities',
+      'controller class' => 'EntityDefaultUIController',
+    ),
+    'views controller class' => 'EntityDefaultViewsController',
+  );
+
+  return $info;
+}
+
+/**
+ * @param $gisentity
+ * @return array
+ */
+function gisentity_uri($gisentity) {
+  return array(
+    'path' => 'gisentity/' . $gisentity->id,
+  );
+}
+
+/**
+ * Implements hook_load().
+ */
+function gisentity_load($id = NULL, $reset = FALSE) {
+  $ids = (isset($id) ? array($id) : array());
+  $gisentity = gisentity_load_multiple($ids, $reset);
+  return $gisentity ? reset($gisentity) : FALSE;
+}
+
+function gisentity_load_multiple($ids = array(), $conditions = array(), $reset = FALSE) {
+  return entity_load('gisentity', $ids, $conditions, $reset);
+}
+
+
+class gisentityController extends EntityAPIController {
+  public function buildContent($entity, $view_mode = 'full', $langcode = NULL, $content = array()) {
+
+    $build = parent::buildContent($entity, $view_mode, $langcode, $content);
+
+    $build['taken_by'] = array(
+      '#type' => 'markup',
+      '#markup' => check_plain($entity->taken_by),
+      '#prefix' => '<div class="project-description">',
+      '#suffix' =>'</div>',
+    );
+    $build['date_taken'] = array(
+      '#type' => 'markup',
+      '#markup' => date('d F, Y', check_plain($entity->date_taken)),
+      '#prefix' => '<p>Date Taken: ',
+      '#suffix' => '</p>',
+    );
+
+    return $build;
+  }
+}
+
+
+/**
+ * Implements hook_menu().
+ */
+function gisentity_menu() {
+  $items = array();
+
+  $items['gisentity/%'] = array(
+    'title' => 'GISCodes',
+    'page callback' => 'demo_view_gisentity',
+    'page arguments' => array(1),
+  'access arguments' => array('access content'),
+  );
+
+  $items['gisentities'] = array(
+    'title' => 'The GIS Codes.',
+    'page callback' => 'demo_codes',
+    'access arguments' => array('access content'),
+  );
+
+  return $items;
+}
+
+class gisentityEntity extends Entity {
+  protected function defaultUri() {
+    return array('path' => 'gisentity/' . $this->identifier());
+  }
+}
+
+function demo_access_callback($op, $code = NULL, $account = NULL) {
+  if ($op == 'view' || $op == 'update' || $op == 'create' || $op == 'delete') {
+    return TRUE;
+  }
+  else {
+    return FALSE;
+  }
+}
+
+/**
+ * Implements hook_form().
+ */
+function gisentity_form($form, &$form_state, $gisentity = NULL) {
+
+  $form['taken_by'] = array(
+    '#title' => t('User taking code'),
+    '#type' => t('textfield'),
+    '#default_value' => isset($gisentity->taken_by) ? $gisentity->taken_by : '',
+    '#reuired' => TRUE,
+  );
+
+  $form['code'] = array(
+    '#title' => t('The Code given'),
+    '#type' => 'textarea',
+    '#default_value' => isset($gisentity->code) ? $gisentity->code : '',
+    '#required' => TRUE,
+  );
+
+  $form['date_taken'] = array(
+    '#title' => t('Date Taken'),
+    '#type' => 'textfield',
+    '#default_value' => isset($gisentity->date_taken) ? $gisentity->date_taken : '',
+    '#required' => TRUE,
+  );
+
+  field_attach_form('gisentity', $gisentity, $form, $form_state);
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => isset($gisentity->id) ? t('Update gisentity') : t('Save gisentity'),
+    '#weight' => 50,
+  );
+
+  return $form;
+}
+
+/**
+ * Submit handler for the project add/edit form.
+ */
+function gisentity_form_submit($form, &$form_state) {
+  $gisentity = entity_ui_form_submit_build_entity($form, $form_state);
+  $gisentity->save();
+  drupal_set_message(t('The project: @code has been saved.', array('@code' => $gisentity->code)));
+  $form_state['redirect'] = 'admin/gisentity';
+}
+
+/**
+ * @param $user
+ * @param string $date
+ *
+ * getting the first available code, sending it to the user, and then updating
+ * the db with the current user and date
+ */
+function display_giscode ($user, $date = 'no date') {
+
+  $email = $_REQUEST['submitted']['email_address'];
+  $time = format_date(time(), 'custom', 'Y-m-d');
+
+  // We are first going to check to see if this user already has a code
+  // assigned to them. If they do then we are going to re-email that same code.
+  $existCheck = db_select('gisentity_codes_table', 'gi')
+    ->fields('gi', array('id', 'code', 'taken_by', 'date_taken'))
+    ->condition('gi.taken_by', $user->name, '=')
+    ->orderBy('gi.date_taken', 'DESC')
+    ->range(0,1);
+    $existResults = $existCheck->execute();
+    $count = $existResults->rowCount();
+  if ($count) {
+    $tempExists = $existResults->fetchAssoc();
+    $params['codeInfo'] = $tempExists;
+  }
+  // If they don't already have a code, we will return the next available code
+  // unless there aren't any left...then we just refer back to instructor
+  else {
+    $firstCode = db_select('gisentity_codes_table', 'g')
+      ->fields('g', array('id', 'code', 'taken_by'))
+      ->condition('g.taken_by', '', '=')
+      ->range(0, 1);
+    $result = $firstCode->execute();
+    $allCount = $result->rowCount();
+
+    if (!($allCount)) {
+      drupal_set_message('There are no more available codes. Please, see your
+      instructor for more assistance.');
+      return;
+    }
+
+    // Update the db with the current date and current user
+    while ($tempRecord = $result->fetchAssoc()) {
+      db_update('gisentity_codes_table')
+        ->fields(array(
+          'taken_by' => $user->name,
+          'date_taken' => $time,
+        ))
+        ->condition('id', $tempRecord['id'], '=')
+        ->execute();
+
+      $params['codeInfo'] = $tempRecord;
+    }
+  }
+
+  $params['account'] = $user;
+  $from = variable_get('site_mail', 'admin@ou.edu');
+  $result = drupal_mail('codeEmail', 'sendCode', $email, user_preferred_language($user), $params, $from, TRUE);
+
+  if ($result['result'] == TRUE) {
+    drupal_set_message(t('Your GIS code is @code. It has also been emailed to you.', array('@code' => $params['codeInfo']['code'])));
+  }
+  else {
+    drupal_set_message(t('something went wrong'), 'error');
+  }
+}
+
+/**
+ * Implments hook_entity_property_info
+ */
+function demo_entity_property_info() {
+  $info = array();
+
+  $info['gisentity']['properties']['id'] = array(
+    'label' => t('Code ID'),
+    'description' => t('The ID of the code to be given'),
+    'type' => 'text',
+    'schema field' => 'id',
+  );
+
+  $info['gisentity']['properties']['code'] = array(
+    'label' => t('Code'),
+    'description' => t('The code to be given'),
+    'type' => 'text',
+    'schema field' => 'code',
+  );
+
+  $info['gisentity']['properties']['taken_by'] = array(
+    'label' => t('Taken By'),
+    'description' => t('The user who received the code'),
+    'type' => 'text',
+    'schema field' => 'taken_by',
+  );
+
+  $info['gisentity']['properties']['date_taken'] = array(
+    'label' => t('Date Taken'),
+    'description' => t('The date the code was issued'),
+    'type' => 'date',
+    'schema field' => 'date_taken',
+  );
+
+  return $info;
+}
+
+/**
+ * Implements hook_feeds_processor_targets_alter().
+ */
+function gisentity_feeds_processor_targets_alter(array &$targets, $entity_type, $bundle) {
+  $targets['gis_codes'] = array(
+    'name' => t('GIS Code Import'),
+    'description' => t('This field takes the csv and puts it into the GIS table.'),
+    'callback' => 'gisentity_code',
+  );
+}
+
+function gisentity_code ($source, $entity, $target, $value, $mapping) {
+  dpm($source);
+  dpm($entity);
+  dpm($target);
+  dpm($value);
+  dpm($mapping);
+  dpm('hello');
+}
+
+function demo_view_gisentity($id) {
+
+  $codes = entity_load('gisentity', array($id));
+  $code = $codes[$id];
+
+  drupal_set_title($code->code);
+  $output = entity_view('gisentity', array($code));
+
+  return $output;
+}

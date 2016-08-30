@@ -1,0 +1,4 @@
+name = GIS Codes Entity
+description = Entity to distribute GIS codes to students
+core = 7.x
+dependencies[] = entity

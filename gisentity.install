@@ -1,0 +1,45 @@
+<?php
+
+/**
+ * @file
+ * Installation and schema hooks for gisentity.module
+ */
+
+/**
+ * @return array
+ * Implements hook_schema().
+ */
+function gisentity_schema() {
+  $schema = array();
+  $schema['gisentity_codes_table'] =array(
+    'description' => 'The base tale for the GIS entity',
+    'fields' => array(
+      'id' => array(
+        'description' => 'Primary key of the GIS entity',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ),
+      'code' => array(
+        'description' => 'The code given',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE,
+      ),
+      'taken_by' => array(
+        'description' => 'User that acquired the code',
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => FALSE,
+      ),
+      'date_taken' => array(
+        'description' => 'when the code was acquired',
+        'type' => 'int',
+        'length' => 10,
+        'not null' => FALSE,
+      ),
+    ),
+    'primary key' => array('id'),
+  );
+  return $schema;
+}
