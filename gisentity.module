@@ -14,7 +14,7 @@ function gisentity_entity_info() {
     //This helps Entity API know how to query the custom table.
     'entity keys' => array(
       'id' => 'id',
-      'code' => 'code',
+      'label' => 'code',
     ),
     'module' => 'gisentity',
     'entity class' => 'gisentityEntity',
@@ -207,7 +207,8 @@ function display_giscode ($user, $date = 'no date') {
   else {
     $firstCode = db_select('gisentity_codes_table', 'g')
       ->fields('g', array('id', 'code', 'taken_by'))
-      ->condition('g.taken_by', '', '=')
+      ->condition('g.taken_by', NULL)
+      ->orderBy('taken_by', 'ASC')
       ->range(0, 1);
     $result = $firstCode->execute();
     $allCount = $result->rowCount();
@@ -247,7 +248,7 @@ function display_giscode ($user, $date = 'no date') {
 /**
  * Implments hook_entity_property_info
  */
-function demo_entity_property_info() {
+function gisentity_property_info() {
   $info = array();
 
   $info['gisentity']['properties']['id'] = array(
@@ -283,22 +284,25 @@ function demo_entity_property_info() {
 
 /**
  * Implements hook_feeds_processor_targets_alter().
+ *
+ * This puts the option of 'GIS Code Import' into the feeds possibilities
  */
-function gisentity_feeds_processor_targets_alter(array &$targets, $entity_type, $bundle) {
+function gisentity_feeds_processor_targets_alter(&$targets, $entity_type, $bundle) {
   $targets['gis_codes'] = array(
     'name' => t('GIS Code Import'),
     'description' => t('This field takes the csv and puts it into the GIS table.'),
-    'callback' => 'gisentity_code',
+    'callback' => 'gisentity_set_target',
   );
 }
 
-function gisentity_code ($source, $entity, $target, $value, $mapping) {
-  dpm($source);
-  dpm($entity);
-  dpm($target);
-  dpm($value);
-  dpm($mapping);
-  dpm('hello');
+function gisentity_set_target ($source, $entity, $target, $value, $mapping) {
+  $code = $value[0];
+
+  $cid = db_insert('gisentity_codes_table')
+    ->fields(array(
+      'code' => $code,
+    ))
+    ->execute();
 }
 
 function demo_view_gisentity($id) {
