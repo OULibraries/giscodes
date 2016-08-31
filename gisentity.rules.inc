@@ -18,10 +18,6 @@ function gisentity_rules_action_info() {
           'type' => 'user',
           'label' => t('User to get code'),
         ),
-        'data' => array(
-          'type' => 'data',
-          'label' => 'Target data',
-        ),
       ),
     ),
 
