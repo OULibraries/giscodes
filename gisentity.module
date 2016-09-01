@@ -194,7 +194,7 @@ function gisentity_form_submit($form, &$form_state) {
  * the db with the current user and date
  */
 function display_giscode ($user, $date = 'no date') {
-  dpm($user);
+
   $email = $_REQUEST['submitted']['email_address'];
   $time = format_date(time(), 'custom', 'Y-m-d');
 
