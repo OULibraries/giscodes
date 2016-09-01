@@ -112,7 +112,7 @@ function gisentity_menu() {
     'title' => 'GISCodes',
     'page callback' => 'demo_view_gisentity',
     'page arguments' => array(1),
-  'access arguments' => array('access content'),
+    'access arguments' => array('access content'),
   );
 
   $items['gisentities'] = array(
@@ -194,7 +194,7 @@ function gisentity_form_submit($form, &$form_state) {
  * the db with the current user and date
  */
 function display_giscode ($user, $date = 'no date') {
-dpm($user);
+  dpm($user);
   $email = $_REQUEST['submitted']['email_address'];
   $time = format_date(time(), 'custom', 'Y-m-d');
 
@@ -205,8 +205,8 @@ dpm($user);
     ->condition('gi.taken_by', $user->name, '=')
     ->orderBy('gi.date_taken', 'DESC')
     ->range(0,1);
-    $existResults = $existCheck->execute();
-    $count = $existResults->rowCount();
+  $existResults = $existCheck->execute();
+  $count = $existResults->rowCount();
   if ($count) {
     $tempExists = $existResults->fetchAssoc();
     $params['codeInfo'] = $tempExists;
