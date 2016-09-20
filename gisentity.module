@@ -264,14 +264,14 @@ function gisentity_entity_property_info() {
 
   $info['gisentity']['properties']['id'] = array(
     'label' => t('Code ID'),
-    'description' => t('The ID of the code to be givens'),
+    'description' => t('The ID of the code to be given'),
     'type' => 'text',
     'schema field' => 'id',
   );
 
   $info['gisentity']['properties']['code'] = array(
     'label' => t('Code'),
-    'description' => t('The code to be givens'),
+    'description' => t('The code to be given'),
     'type' => 'text',
     'schema field' => 'code',
   );
