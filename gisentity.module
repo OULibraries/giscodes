@@ -34,7 +34,7 @@ function gisentity_entity_info() {
         'custom settings' => FALSE,
       ),
     ),
-    'access callback' => 'demo_access_callback',
+    'access callback' => 'gisentity_access_callback',
     'uri callback' => 'entity_class_uri',
     'admin ui' => array(
       'path' => 'admin/gisentities',
@@ -75,18 +75,28 @@ class gisentityController extends EntityAPIController {
 
     $build = parent::buildContent($entity, $view_mode, $langcode, $content);
 
-    $build['taken_by'] = array(
-      '#type' => 'markup',
-      '#markup' => check_plain($entity->taken_by),
-      '#prefix' => '<div class="project-description">',
-      '#suffix' =>'</div>',
-    );
-    $build['date_taken'] = array(
-      '#type' => 'markup',
-      '#markup' => date('d F, Y', check_plain($entity->date_taken)),
-      '#prefix' => '<p>Date Taken: ',
-      '#suffix' => '</p>',
-    );
+    if($entity->taken_by) {
+      $build['taken_by'] = array(
+        '#type' => 'markup',
+        '#markup' => check_plain($entity->taken_by),
+        '#prefix' => '<div class="project-description">Taken by: ',
+        '#suffix' => '</div>',
+      );
+      $build['date_taken'] = array(
+        '#type' => 'markup',
+        '#markup' => check_plain($entity->date_taken),
+        '#prefix' => '<div>Date Taken: ',
+        '#suffix' => '</div>',
+      );
+    }
+    else {
+      $build['taken_by'] = array(
+        '#type' => 'markup',
+        '#markup' => t('Code has not been issued'),
+        '#prefix' => '<div>',
+        '#suffix' => '</div>'
+      );
+    }
 
     return $build;
   }
@@ -103,7 +113,7 @@ function gisentity_menu() {
     'title' => 'GISCodes',
     'page callback' => 'demo_view_gisentity',
     'page arguments' => array(1),
-  'access arguments' => array('access content'),
+    'access arguments' => array('access content'),
   );
 
   $items['gisentities'] = array(
@@ -121,7 +131,7 @@ class gisentityEntity extends Entity {
   }
 }
 
-function demo_access_callback($op, $code = NULL, $account = NULL) {
+function gisentity_access_callback($op, $code = NULL, $account = NULL) {
   if ($op == 'view' || $op == 'update' || $op == 'create' || $op == 'delete') {
     return TRUE;
   }
@@ -151,7 +161,7 @@ function gisentity_form($form, &$form_state, $gisentity = NULL) {
 
   $form['date_taken'] = array(
     '#title' => t('Date Taken'),
-    '#type' => 'textfield',
+    '#type' => 'date',
     '#default_value' => isset($gisentity->date_taken) ? $gisentity->date_taken : '',
     '#required' => TRUE,
   );
@@ -193,11 +203,11 @@ function display_giscode ($user, $date = 'no date') {
   // assigned to them. If they do then we are going to re-email that same code.
   $existCheck = db_select('gisentity_codes_table', 'gi')
     ->fields('gi', array('id', 'code', 'taken_by', 'date_taken'))
-    ->condition('gi.taken_by', $user->name, '=')
+    ->condition('gi.taken_by', $user->realname, '=')
     ->orderBy('gi.date_taken', 'DESC')
     ->range(0,1);
-    $existResults = $existCheck->execute();
-    $count = $existResults->rowCount();
+  $existResults = $existCheck->execute();
+  $count = $existResults->rowCount();
   if ($count) {
     $tempExists = $existResults->fetchAssoc();
     $params['codeInfo'] = $tempExists;
@@ -216,14 +226,14 @@ function display_giscode ($user, $date = 'no date') {
     if (!($allCount)) {
       drupal_set_message('There are no more available codes. Please, see your
       instructor for more assistance.');
-      return;
+      return false;
     }
 
     // Update the db with the current date and current user
     while ($tempRecord = $result->fetchAssoc()) {
       db_update('gisentity_codes_table')
         ->fields(array(
-          'taken_by' => $user->name,
+          'taken_by' => $user->realname,
           'date_taken' => $time,
         ))
         ->condition('id', $tempRecord['id'], '=')
@@ -243,12 +253,13 @@ function display_giscode ($user, $date = 'no date') {
   else {
     drupal_set_message(t('something went wrong'), 'error');
   }
+  return true;
 }
 
 /**
- * Implments hook_entity_property_info
+ * Implements hook_entity_property_info
  */
-function gisentity_property_info() {
+function gisentity_entity_property_info() {
   $info = array();
 
   $info['gisentity']['properties']['id'] = array(
@@ -275,7 +286,7 @@ function gisentity_property_info() {
   $info['gisentity']['properties']['date_taken'] = array(
     'label' => t('Date Taken'),
     'description' => t('The date the code was issued'),
-    'type' => 'date',
+    'type' => 'text',
     'schema field' => 'date_taken',
   );
 
@@ -297,7 +308,6 @@ function gisentity_feeds_processor_targets_alter(&$targets, $entity_type, $bundl
 
 function gisentity_set_target ($source, $entity, $target, $value, $mapping) {
   $code = $value[0];
-
   $cid = db_insert('gisentity_codes_table')
     ->fields(array(
       'code' => $code,

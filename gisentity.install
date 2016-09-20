@@ -34,8 +34,8 @@ function gisentity_schema() {
       ),
       'date_taken' => array(
         'description' => 'when the code was acquired',
-        'type' => 'int',
-        'length' => 10,
+        'type' => 'varchar',
+        'length' => 11,
         'not null' => FALSE,
       ),
     ),
