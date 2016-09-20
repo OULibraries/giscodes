@@ -30,6 +30,7 @@ function gisentity_rules_action_info() {
  */
 function gisentity_action_form_submit($user, $node) {
   display_giscode($user);
+  return true;
 }
 
 function codeEmail_mail($key, &$message, $params) {

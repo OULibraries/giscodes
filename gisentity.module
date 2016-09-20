@@ -47,15 +47,6 @@ function gisentity_entity_info() {
 }
 
 /**
- * Implements hook_views_api().
- */
-//function gisentity_views_api() {
-//  return array(
-//    'api' => 3,
-//  );
-//}
-
-/**
  * @param $gisentity
  * @return array
  */
@@ -84,18 +75,28 @@ class gisentityController extends EntityAPIController {
 
     $build = parent::buildContent($entity, $view_mode, $langcode, $content);
 
-    $build['taken_by'] = array(
-      '#type' => 'markup',
-      '#markup' => check_plain($entity->taken_by),
-      '#prefix' => '<div class="project-description">',
-      '#suffix' =>'</div>',
-    );
-    $build['date_taken'] = array(
-      '#type' => 'date',
-      '#markup' => date('d F, Y', check_plain($entity->date_taken)),
-      '#prefix' => '<p>Date Taken: ',
-      '#suffix' => '</p>',
-    );
+    if($entity->taken_by) {
+      $build['taken_by'] = array(
+        '#type' => 'markup',
+        '#markup' => check_plain($entity->taken_by),
+        '#prefix' => '<div class="project-description">Taken by: ',
+        '#suffix' => '</div>',
+      );
+      $build['date_taken'] = array(
+        '#type' => 'markup',
+        '#markup' => check_plain($entity->date_taken),
+        '#prefix' => '<div>Date Taken: ',
+        '#suffix' => '</div>',
+      );
+    }
+    else {
+      $build['taken_by'] = array(
+        '#type' => 'markup',
+        '#markup' => t('Code has not been issued'),
+        '#prefix' => '<div>',
+        '#suffix' => '</div>'
+      );
+    }
 
     return $build;
   }
@@ -202,7 +203,7 @@ function display_giscode ($user, $date = 'no date') {
   // assigned to them. If they do then we are going to re-email that same code.
   $existCheck = db_select('gisentity_codes_table', 'gi')
     ->fields('gi', array('id', 'code', 'taken_by', 'date_taken'))
-    ->condition('gi.taken_by', $user->name, '=')
+    ->condition('gi.taken_by', $user->realname, '=')
     ->orderBy('gi.date_taken', 'DESC')
     ->range(0,1);
   $existResults = $existCheck->execute();
@@ -225,7 +226,7 @@ function display_giscode ($user, $date = 'no date') {
     if (!($allCount)) {
       drupal_set_message('There are no more available codes. Please, see your
       instructor for more assistance.');
-      return;
+      return false;
     }
 
     // Update the db with the current date and current user
@@ -252,6 +253,7 @@ function display_giscode ($user, $date = 'no date') {
   else {
     drupal_set_message(t('something went wrong'), 'error');
   }
+  return true;
 }
 
 /**
@@ -262,14 +264,14 @@ function gisentity_entity_property_info() {
 
   $info['gisentity']['properties']['id'] = array(
     'label' => t('Code ID'),
-    'description' => t('The ID of the code to be given'),
+    'description' => t('The ID of the code to be givens'),
     'type' => 'text',
     'schema field' => 'id',
   );
 
   $info['gisentity']['properties']['code'] = array(
     'label' => t('Code'),
-    'description' => t('The code to be given'),
+    'description' => t('The code to be givens'),
     'type' => 'text',
     'schema field' => 'code',
   );
@@ -306,7 +308,6 @@ function gisentity_feeds_processor_targets_alter(&$targets, $entity_type, $bundl
 
 function gisentity_set_target ($source, $entity, $target, $value, $mapping) {
   $code = $value[0];
-
   $cid = db_insert('gisentity_codes_table')
     ->fields(array(
       'code' => $code,
